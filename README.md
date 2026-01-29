@@ -32,6 +32,8 @@ import (
 )
 
 func main() {
+	l := slog.Default()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -40,63 +42,40 @@ func main() {
 
 	c := gocron.NewCron(notifyCtx,
 		gocron.WithTimeout(15*time.Second),
-		gocron.WithDefaultHandler(gocron.SlogHandler(slog.Default(), slog.LevelError)),
+		gocron.WithDefaultHandler(gocron.SlogHandler(l, slog.LevelError)),
 	)
 
-	c.Add("@every 1s", func(ctx context.Context) error {
+	gocron.Must(c.Add("*/1 * * * * *", func(ctx context.Context) error {
+		log.Println("@every 1s run")
 		return nil
-	}).WithName("fast-ok")
+	})).WithName("1s ok")
 
-	c.Add("@every 1s", func(ctx context.Context) error {
+	c.MustAdd("@every 1s", func(ctx context.Context) error {
 		return errors.New("no data")
-	}).WithName("fast-error")
+	}).WithName("1s err")
 
-	if err := c.Start(); err != nil {
-		log.Fatal(err)
-	}
+	c.MustAdd("@every 1m", func(ctx context.Context) error {
+		time.Sleep(16 * time.Second)
+		return ctx.Err()
+	}).WithName("1s timeout")
+
+	c.Start()
 
 	<-notifyCtx.Done()
 
 	if err := c.Shutdown(ctx); err != nil {
-		log.Fatal(err)
+		l.Error("can't shutdown cron", slog.Any("error", err))
+		return
 	}
 }
 ```
 
-## API overview
-### Cron
-```go
-type Cron interface {
-	Add(spec string, cmd Cmd) Job
-	Start() error
-	Shutdown(ctx context.Context) error
-}
-```
-
-### Job options
-```go
-type Job interface {
-	WithName(name string) Job
-	WithTimeout(t time.Duration) Job
-	WithLock(lock Lock) Job
-	WithHandler(h Handler) Job
-}
-```
-
-### Handlers and stages
-- Use `WithDefaultHandler` to set a default job handler for the cron.
-- Use `WithHandler` to override per job.
-- Handler receives the stage: `StageStart`, `StageRun`, `StageFinish`.
-- `SlogHandler` is a ready-to-use handler based on `log/slog`.
-
-### Locking
-Provide a custom lock implementation:
-```go
-type Lock interface {
-	Lock(ctx context.Context) error
-	Unlock(ctx context.Context) error
-}
-```
+## Project summary
+- Wraps `github.com/robfig/cron` with context-aware jobs and graceful shutdown.
+- Supports per-job timeouts and optional locking to prevent overlapping runs.
+- Provides pluggable error handlers with lifecycle stage information.
+- Includes a `log/slog` handler for structured error logging.
+- `Add`/`Start` are not synchronized; avoid calling them concurrently if you rely on `ErrCronStarted`.
 
 ## Testing
 See `TESTS.md` for unit test guidelines.

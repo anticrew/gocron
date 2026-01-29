@@ -14,7 +14,5 @@ func TimeoutContextFactory(timeout time.Duration) ContextFactory {
 }
 
 func CancelContextFactory() ContextFactory {
-	return func(ctx context.Context) (context.Context, context.CancelFunc) {
-		return context.WithCancel(ctx)
-	}
+	return context.WithCancel
 }

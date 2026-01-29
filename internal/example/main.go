@@ -14,6 +14,8 @@ import (
 )
 
 func main() {
+	l := slog.Default()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -22,30 +24,29 @@ func main() {
 
 	c := gocron.NewCron(notifyCtx,
 		gocron.WithTimeout(15*time.Second),
-		gocron.WithDefaultHandler(gocron.SlogHandler(slog.Default(), slog.LevelError)),
+		gocron.WithDefaultHandler(gocron.SlogHandler(l, slog.LevelError)),
 	)
 
-	c.Add("@every 1s", func(ctx context.Context) error {
-		//log.Println("@every 1s run")
+	gocron.Must(c.Add("*/1 * * * * *", func(ctx context.Context) error {
+		log.Println("@every 1s run")
 		return nil
-	}).WithName("1h ok")
+	})).WithName("1s ok")
 
-	c.Add("@every 1s", func(ctx context.Context) error {
+	c.MustAdd("@every 1s", func(ctx context.Context) error {
 		return errors.New("no data")
 	}).WithName("1s err")
 
-	c.Add("@every 1m", func(ctx context.Context) error {
+	c.MustAdd("@every 1m", func(ctx context.Context) error {
 		time.Sleep(16 * time.Second)
 		return ctx.Err()
 	}).WithName("1s timeout")
 
-	if err := c.Start(); err != nil {
-		log.Fatal(err)
-	}
+	c.Start()
 
 	<-notifyCtx.Done()
 
 	if err := c.Shutdown(ctx); err != nil {
-		log.Fatal(err)
+		l.Error("can't shutdown cron", slog.Any("error", err))
+		return
 	}
 }

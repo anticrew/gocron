@@ -2,8 +2,8 @@ package gocron
 
 import (
 	"context"
-	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	c "github.com/robfig/cron"
@@ -15,9 +15,10 @@ type defaults struct {
 }
 
 type cron struct {
+	started atomic.Bool
+
 	baseCtx context.Context
 	cron    *c.Cron
-	errors  []error
 
 	defaults defaults
 	wg       *sync.WaitGroup
@@ -25,18 +26,23 @@ type cron struct {
 
 type Option func(*cron)
 
+// WithDefaultHandler sets the default handler used by all jobs.
+// This handler can be overwritten by Job.WithHandler
 func WithDefaultHandler(h Handler) Option {
 	return func(c *cron) {
 		c.defaults.handler = h
 	}
 }
 
+// WithTimeout sets the default timeout used by all jobs.
+// This timeout can be overwritten by Job.WithTimeout
 func WithTimeout(t time.Duration) Option {
 	return func(c *cron) {
 		c.defaults.timeout = t
 	}
 }
 
+// NewCron creates a cron with the provided context and options
 func NewCron(ctx context.Context, options ...Option) Cron {
 	cr := &cron{
 		baseCtx: ctx,
@@ -51,29 +57,42 @@ func NewCron(ctx context.Context, options ...Option) Cron {
 	return cr
 }
 
-func (c *cron) Add(spec string, cmd Cmd) Job {
-	j := newJob(spec, c.baseCtx, cmd)
+// Add registers a job with the given cron spec.
+// Look at github.com/robfig/cron documentation for details about spec format
+func (c *cron) Add(spec string, cmd Cmd) (Job, error) {
+	j := newJob(c.baseCtx, spec, cmd)
 	j.WithHandler(c.defaults.handler)
 	j.WithTimeout(c.defaults.timeout)
 	j.withWaitGroup(c.wg)
 
 	if err := c.cron.AddJob(spec, j); err != nil {
-		c.errors = append(c.errors)
+		return nil, err
 	}
 
-	return j
+	return j, nil
 }
 
-func (c *cron) Start() error {
-	if len(c.errors) > 0 {
-		return errors.Join(c.errors...)
+func (c *cron) MustAdd(spec string, cmd Cmd) Job {
+	return Must(c.Add(spec, cmd))
+}
+
+// Start begins scheduling jobs.
+// It should be called once, next calls without call Shutdown before will be ignored
+func (c *cron) Start() {
+	if c.started.Swap(true) {
+		return
 	}
 
 	c.cron.Start()
-	return nil
 }
 
+// Shutdown stops scheduling and waits for running jobs to finish or context cancellation.
+// It should be called once, next calls without call Start before will be ignored
 func (c *cron) Shutdown(ctx context.Context) error {
+	if !c.started.Swap(false) {
+		return nil
+	}
+
 	c.cron.Stop()
 
 	select {

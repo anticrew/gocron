@@ -1,0 +1,240 @@
+version: "2"
+run:
+  concurrency: 8
+  issues-exit-code: 1
+  tests: true
+  allow-parallel-runners: true
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - copyloopvar
+    - cyclop
+    - decorder
+    - depguard
+    - dupl
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forbidigo
+    - funlen
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - gomoddirectives
+    - goprintffuncname
+    - gosec
+    - govet
+    - iface
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - lll
+    - loggercheck
+    - makezero
+    - mirror
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - testableexamples
+    - testifylint
+    - tparallel
+    - unconvert
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+  settings:
+    cyclop:
+      max-complexity: 30
+      package-average: 10
+    depguard:
+      rules:
+        non-test files:
+          files:
+            - '!$test'
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead, see https://go.dev/blog/randv2
+    dupl:
+      threshold: 150
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    exhaustive:
+      check:
+        - switch
+        - map
+    funlen:
+      lines: 100
+      statements: 50
+      ignore-comments: true
+    gocognit:
+      min-complexity: 20
+    gochecksumtype:
+      default-signifies-exhaustive: false
+    goconst:
+      match-constant: true
+      min-len: 5
+      min-occurrences: 3
+      numbers: true
+      ignore-calls: true
+    gocritic:
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+    gosec:
+      excludes:
+        - G112
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+    inamedparam:
+      skip-single-param: true
+    interfacebloat:
+      max: 15
+    nakedret:
+      max-func-lines: 0
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-no-explanation:
+        - funlen
+        - gocognit
+        - lll
+      allow-unused: true
+    perfsprint:
+      strconcat: false
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: true
+    reassign:
+      patterns:
+        - .*
+    revive:
+      severity: warning
+      rules:
+        - name: line-length-limit
+          arguments:
+            - 180
+        - name: function-result-limit
+          arguments:
+            - 4
+        - name: argument-limit
+          arguments:
+            - 20
+        - name: blank-imports
+        - name: error-return
+        - name: increment-decrement
+        - name: deep-exit
+        - name: var-declaration
+        - name: package-comments
+        - name: dot-imports
+        - name: exported
+        - name: unreachable-code
+        - name: waitgroup-by-value
+        - name: early-return
+        - name: indent-error-flow
+        - name: range
+        - name: errorf
+        - name: error-naming
+        - name: error-strings
+        - name: receiver-naming
+        - name: unexported-return
+        - name: context-keys-type
+        - name: context-as-argument
+        - name: defer
+        - name: nested-structs
+        - name: var-naming
+          disabled: true
+    rowserrcheck:
+      packages:
+        - github.com/jmoiron/sqlx
+    sloglint:
+      attr-only: true
+      no-global: all
+      msg-style: lowercased
+      key-naming-case: camel
+      args-on-sep-lines: true
+    unused:
+      field-writes-are-uses: true
+      post-statements-are-reads: true
+      parameters-are-used: true
+      local-variables-are-used: true
+    usetesting:
+      os-temp-dir: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - godot
+        source: (noinspection|TODO)
+      - linters:
+          - gocritic
+        source: //noinspection
+      - linters:
+          - bodyclose
+          - dupl
+          - errcheck
+          - funlen
+          - goconst
+          - gosec
+          - noctx
+          - wrapcheck
+        path: _test\.go
+      - linters:
+          - goconst
+        path: (.+)_test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-same-issues: 50
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
