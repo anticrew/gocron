@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	gocron "github.com/KirillBogatikov/go-cron"
+	gocron "github.com/anticrew/gocron"
 )
 
 func main() {

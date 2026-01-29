@@ -1,4 +1,4 @@
-# go-cron
+# gocron
 
 Small Go cron wrapper around `github.com/robfig/cron` with context-aware jobs, optional timeouts, locking, and error handling hooks.
 
@@ -11,7 +11,7 @@ Small Go cron wrapper around `github.com/robfig/cron` with context-aware jobs, o
 
 ## Install
 ```bash
-go get github.com/KirillBogatikov/go-cron
+go get github.com/anticrew/gocron
 ```
 
 ## Quick start
@@ -28,7 +28,7 @@ import (
 	"syscall"
 	"time"
 
-	gocron "github.com/KirillBogatikov/go-cron"
+	gocron "github.com/anticrew/gocron"
 )
 
 func main() {
@@ -70,12 +70,5 @@ func main() {
 }
 ```
 
-## Project summary
-- Wraps `github.com/robfig/cron` with context-aware jobs and graceful shutdown.
-- Supports per-job timeouts and optional locking to prevent overlapping runs.
-- Provides pluggable error handlers with lifecycle stage information.
-- Includes a `log/slog` handler for structured error logging.
-- `Add`/`Start` are not synchronized; avoid calling them concurrently if you rely on `ErrCronStarted`.
-
 ## Testing
-See `TESTS.md` for unit test guidelines.
+See `ai-rules/test/SKILL.md` for unit test guidelines.

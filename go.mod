@@ -1,4 +1,4 @@
-module github.com/KirillBogatikov/go-cron
+module github.com/anticrew/gocron
 
 go 1.25.0
 

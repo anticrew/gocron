@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/KirillBogatikov/go-cron/internal"
+	"github.com/anticrew/gocron/internal"
 )
 
 type job struct {

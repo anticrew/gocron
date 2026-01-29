@@ -4,7 +4,7 @@
 The project structure and description are documented in README.md.
 
 ## Testing
-- Unit testing guidelines are documented in TESTS.md.
+- Unit testing guidelines are documented in ai-rules/test/SKILL.md.
 
 ## Change style
 - Minimize changes: do only the requested tasks and avoid touching unrelated edits.
