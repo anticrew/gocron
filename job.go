@@ -97,7 +97,7 @@ func (j *job) acquireLock(ctx context.Context) bool {
 	err := j.lock.Lock(ctx)
 	j.handle(StageStart, err)
 
-	return true
+	return err == nil
 }
 
 func (j *job) releaseLock(ctx context.Context) {

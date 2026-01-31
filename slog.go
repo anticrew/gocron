@@ -12,20 +12,25 @@ type SlogHandler struct {
 	errorLeveler slog.Leveler
 }
 
-// NewSlogHandler creates a slog-based handler with no trace/error levels set.
+// NewSlogHandler creates a slog-based handler with no trace/error levels set by default.
+// If specified log is nil, slog.Default will be used.
 func NewSlogHandler(log *slog.Logger) *SlogHandler {
+	if log == nil {
+		log = slog.Default()
+	}
+
 	return &SlogHandler{
 		log: log,
 	}
 }
 
-// WithError sets the level used for error events.
+// WithError sets the level used for error events. nil value disables error handling
 func (s *SlogHandler) WithError(leveler slog.Leveler) *SlogHandler {
 	s.errorLeveler = leveler
 	return s
 }
 
-// WithTrace sets the level used for trace events.
+// WithTrace sets the level used for trace events. nil value disables event handling
 func (s *SlogHandler) WithTrace(leveler slog.Leveler) *SlogHandler {
 	s.traceLeveler = leveler
 	return s

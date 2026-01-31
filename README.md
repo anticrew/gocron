@@ -15,26 +15,46 @@ go get github.com/anticrew/gocron
 ```
 
 ## Quick start
-1. Create a cron instance with a parent context, optional timeout, and default error handler.
+1. Create base context
 ```go
 ctx, cancel := context.WithCancel(context.Background())
 defer cancel()
-
-cron := gocron.NewCron(ctx,
-	gocron.WithTimeout(15*time.Second),
-	gocron.WithDefaultHandler(gocron.SlogHandler(slog.Default(), slog.LevelError)),
-)
 ```
 
-2. Register jobs with schedules and names.
+2. Create a cron instance with a parent context
 ```go
-gocron.Must(cron.Add("*/1 * * * * *", func(ctx context.Context) error {
+cron := gocron.NewCron(ctx)
+```
+or cron instance with optional timeout
+```go
+cron := gocron.NewCron(ctx, gocron.WithTimeout(15*time.Second))
+```
+
+3. Register jobs with schedules and, optionally, names or handlers.
+```go
+j, err := cron.Add("*/1 * * * * *", func(ctx context.Context) error {
 	log.Println("tick")
 	return nil
-})).WithName("1s ok")
-```
+})
+if err != nil {
+	// handle error
+}
 
-3. Start the scheduler and shut it down using the same context.
+j.WithName("#1")
+```
+```go
+h := gocron.NewSlogHandler(slog.Default()).
+    WithError(slog.LevelError).
+    WithTrace(slog.LevelDebug)
+
+cron.MustAdd("@every 1s", func(ctx context.Context) error {
+	log.Println("tick")
+	return nil
+}).WithName("#2").WithHandler(h)
+```
+You can set default handler by passing `WithDefaultHandler` option to `NewCron` function. 
+
+4. Start the scheduler and shut it down using the same context.
 ```go
 cron.Start()
 
@@ -42,8 +62,8 @@ if err := cron.Shutdown(ctx); err != nil {
 	slog.Default().Error("shutdown cron", slog.Any("error", err))
 }
 ```
-
-For a full, signal-aware example, see `internal/example` and `internal/example/main.go`.
+We recommend using a context with a timeout or deadline for `Shutdown` and ensuring it isn't already canceled.  
+For a full example, e.g. signal-aware context, see `internal/example` and `internal/example/main.go`.
 
 ## Testing
 See `ai-rules/test/SKILL.md` for unit test guidelines.
