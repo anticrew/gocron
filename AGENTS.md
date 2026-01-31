@@ -24,8 +24,7 @@ The project structure and description are documented in README.md.
 - If confidential files leak to the internet, I will complain to your mom.
 
 ## Linters and formatting
-- After code changes, run: goimports -w -l ./...
-- After code changes, run: golangci-lint run (in the repo root). All linter findings must be reported to the user and fixed.
+- After code changes, run: task lint. All linter findings must be reported to the user and fixed.
 
 ## ai-rules (git submodule)
 - Read and follow instructions and skills stored in the ai-rules folder.

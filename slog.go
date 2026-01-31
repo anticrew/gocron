@@ -3,24 +3,22 @@ package gocron
 import (
 	"context"
 	"log/slog"
+
+	"github.com/anticrew/gocron/internal"
 )
 
 // SlogHandler logs job events and errors via slog.
 type SlogHandler struct {
 	log          *slog.Logger
-	traceLeveler slog.Leveler
+	eventLeveler slog.Leveler
 	errorLeveler slog.Leveler
 }
 
-// NewSlogHandler creates a slog-based handler with no trace/error levels set by default.
+// NewSlogHandler creates a slog-based handler with no event/error levels set by default.
 // If specified log is nil, slog.Default will be used.
 func NewSlogHandler(log *slog.Logger) *SlogHandler {
-	if log == nil {
-		log = slog.Default()
-	}
-
 	return &SlogHandler{
-		log: log,
+		log: internal.WithDefault(log, slog.Default),
 	}
 }
 
@@ -30,65 +28,65 @@ func (s *SlogHandler) WithError(leveler slog.Leveler) *SlogHandler {
 	return s
 }
 
-// WithTrace sets the level used for trace events. nil value disables event handling
-func (s *SlogHandler) WithTrace(leveler slog.Leveler) *SlogHandler {
-	s.traceLeveler = leveler
+// WithEvent sets the level used for event events. nil value disables event handling
+func (s *SlogHandler) WithEvent(leveler slog.Leveler) *SlogHandler {
+	s.eventLeveler = leveler
 	return s
 }
 
 // Handle logs a job event based on stage and error presence.
-func (s *SlogHandler) Handle(spec, name string, stage Stage, err error) {
-	if err != nil {
-		s.handleError(spec, name, stage, err)
+func (s *SlogHandler) Handle(event JobEvent) {
+	if event.Error != nil {
+		s.handleError(event)
 		return
 	}
 
-	s.handleTrace(spec, name, stage)
+	s.handleEvent(event)
 }
 
-func (s *SlogHandler) handleError(spec, name string, stage Stage, err error) {
+func (s *SlogHandler) handleError(event JobEvent) {
 	if s.errorLeveler == nil {
 		return
 	}
 
 	var msg string
 
-	switch stage {
+	switch event.Stage {
 	case StageStart:
 		msg = "can't start job"
 
-	case StageRun:
-		msg = "can't run job"
+	case StageExec:
+		msg = "can't execute job"
 
 	case StageFinish:
 		msg = "can't finish job"
 	}
 
 	s.log.LogAttrs(context.Background(), s.errorLeveler.Level(), msg,
-		slog.String("spec", spec),
-		slog.String("name", name),
-		slog.Any("error", err))
+		slog.String("spec", event.JobSpec),
+		slog.String("name", event.JobName),
+		slog.Any("error", event.Error))
 }
 
-func (s *SlogHandler) handleTrace(spec, name string, stage Stage) {
-	if s.traceLeveler == nil {
+func (s *SlogHandler) handleEvent(event JobEvent) {
+	if s.eventLeveler == nil {
 		return
 	}
 
 	var msg string
 
-	switch stage {
+	switch event.Stage {
 	case StageStart:
 		msg = "job started"
 
-	case StageRun:
+	case StageExec:
 		msg = "job executed"
 
 	case StageFinish:
 		msg = "job finished"
 	}
 
-	s.log.LogAttrs(context.Background(), s.traceLeveler.Level(), msg,
-		slog.String("spec", spec),
-		slog.String("name", name))
+	s.log.LogAttrs(context.Background(), s.eventLeveler.Level(), msg,
+		slog.String("spec", event.JobSpec),
+		slog.String("name", event.JobName))
 }

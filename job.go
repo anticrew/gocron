@@ -23,18 +23,21 @@ type job struct {
 
 func newJob(baseCtx context.Context, spec string, cmd Cmd) *job {
 	return &job{
-		spec:    spec,
-		name:    internal.RandName(8),
-		baseCtx: baseCtx,
-		cmd:     cmd,
+		spec:       spec,
+		name:       internal.RandName(8),
+		baseCtx:    baseCtx,
+		newContext: internal.CancelContextFactory(),
+		cmd:        cmd,
 	}
 }
 
 // Run executes the job command with lock and handler hooks.
 // Exported for compliance with github.com/robfig/cron's Job interface and shouldn't be called manually
 func (j *job) Run() {
-	j.wg.Add(1)
-	defer j.wg.Done()
+	if j.wg != nil {
+		j.wg.Add(1)
+		defer j.wg.Done()
+	}
 
 	ctx, cancel := context.WithCancel(j.baseCtx)
 	defer cancel()
@@ -48,9 +51,8 @@ func (j *job) Run() {
 	cmdCtx, cancelCmdCtx := j.newContext(ctx)
 	defer cancelCmdCtx()
 
-	if err := j.cmd(cmdCtx); err != nil {
-		j.handle(StageRun, err)
-	}
+	err := j.cmd(cmdCtx)
+	j.handle(StageExec, err)
 }
 
 // WithTimeout sets the job timeout; non-positive value disables timeout
@@ -90,22 +92,24 @@ func (j *job) withWaitGroup(wg *sync.WaitGroup) {
 }
 
 func (j *job) acquireLock(ctx context.Context) bool {
-	if j.lock == nil {
-		return true
+	var err error
+
+	if j.lock != nil {
+		err = j.lock.Lock(ctx)
 	}
 
-	err := j.lock.Lock(ctx)
 	j.handle(StageStart, err)
 
 	return err == nil
 }
 
 func (j *job) releaseLock(ctx context.Context) {
-	if j.lock == nil {
-		return
+	var err error
+
+	if j.lock != nil {
+		err = j.lock.Unlock(ctx)
 	}
 
-	err := j.lock.Unlock(ctx)
 	j.handle(StageFinish, err)
 }
 
@@ -114,5 +118,10 @@ func (j *job) handle(stage Stage, err error) {
 		return
 	}
 
-	j.handler.Handle(j.spec, j.name, stage, err)
+	j.handler.Handle(JobEvent{
+		JobSpec: j.spec,
+		JobName: j.name,
+		Stage:   stage,
+		Error:   err,
+	})
 }

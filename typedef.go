@@ -39,7 +39,7 @@ type Job interface {
 	WithHandler(h Handler) Job
 }
 
-// Lock guards concurrent job runs.
+// Lock guards concurrent job runs
 type Lock interface {
 	// Lock acquires the lock
 	Lock(ctx context.Context) error
@@ -51,23 +51,30 @@ type Lock interface {
 type Stage int8
 
 const (
-	// StageStart indicates lock acquisition or start errors
+	// StageStart indicates lock and start stage
 	StageStart Stage = 1 << iota
-	// StageRun indicates job execution errors
-	StageRun
-	// StageFinish indicates unlock or finish errors
+	// StageExec indicates job execution stage
+	StageExec
+	// StageFinish indicates unlock and finish stage
 	StageFinish
 )
 
-// Handler receives job errors with stage context
-type Handler interface {
-	Handle(spec, name string, stage Stage, err error)
+type JobEvent struct {
+	JobSpec string
+	JobName string
+	Stage   Stage
+	Error   error
 }
 
-// HandlerFunc adapts a function to a Handler.
-type HandlerFunc func(spec, name string, stage Stage, err error)
+// Handler receives job events and errors
+type Handler interface {
+	Handle(event JobEvent)
+}
 
-// Handle calls the wrapped function.
-func (f HandlerFunc) Handle(spec, name string, stage Stage, err error) {
-	f(spec, name, stage, err)
+// HandlerFunc adapts a function to a Handler
+type HandlerFunc func(event JobEvent)
+
+// Handle calls the wrapped function
+func (f HandlerFunc) Handle(event JobEvent) {
+	f(event)
 }

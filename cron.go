@@ -2,6 +2,7 @@ package gocron
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -46,7 +47,7 @@ func WithTimeout(t time.Duration) Option {
 // NewCron creates a cron with the provided context and options
 func NewCron(ctx context.Context, options ...Option) Cron {
 	cr := &cron{
-		baseCtx: ctx,
+		baseCtx: internal.WithDefault(ctx, context.Background),
 		cron:    c.New(),
 		wg:      &sync.WaitGroup{},
 	}
@@ -61,13 +62,17 @@ func NewCron(ctx context.Context, options ...Option) Cron {
 // Add registers a job with the given cron spec.
 // Look at github.com/robfig/cron documentation for details about spec format
 func (c *cron) Add(spec string, cmd Cmd) (Job, error) {
+	if cmd == nil {
+		return nil, ErrCommandIsNil
+	}
+
 	j := newJob(c.baseCtx, spec, cmd)
 	j.WithHandler(c.defaults.handler)
 	j.WithTimeout(c.defaults.timeout)
 	j.withWaitGroup(c.wg)
 
 	if err := c.cron.AddJob(spec, j); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cron.AddJob: %w", err)
 	}
 
 	return j, nil
@@ -93,26 +98,9 @@ func (c *cron) Start() {
 // It should be called once, next calls without call Start before will be ignored
 func (c *cron) Shutdown(ctx context.Context) error {
 	if !c.started.Swap(false) {
-		return nil
+		return ErrCronNotRunning
 	}
 
 	c.cron.Stop()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-c.wait():
-		return nil
-	}
-}
-
-func (c *cron) wait() <-chan struct{} {
-	ch := make(chan struct{}, 1)
-
-	go func() {
-		c.wg.Wait()
-		close(ch)
-	}()
-
-	return ch
+	return internal.Wait(ctx, c.wg)
 }

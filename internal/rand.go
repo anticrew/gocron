@@ -5,9 +5,17 @@ import (
 	"encoding/base64"
 )
 
+const (
+	RandNameDefaultSize = 8
+)
+
 func RandName(size int) string {
+	if size < 1 {
+		size = RandNameDefaultSize
+	}
+
 	b := make([]byte, size)
 	_, _ = rand.Read(b)
 
-	return base64.RawURLEncoding.EncodeToString(b)
+	return base64.RawURLEncoding.EncodeToString(b)[:size]
 }
