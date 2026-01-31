@@ -15,60 +15,35 @@ go get github.com/anticrew/gocron
 ```
 
 ## Quick start
+1. Create a cron instance with a parent context, optional timeout, and default error handler.
 ```go
-package main
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
 
-import (
-	"context"
-	"errors"
-	"log"
-	"log/slog"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	gocron "github.com/anticrew/gocron"
+cron := gocron.NewCron(ctx,
+	gocron.WithTimeout(15*time.Second),
+	gocron.WithDefaultHandler(gocron.SlogHandler(slog.Default(), slog.LevelError)),
 )
+```
 
-func main() {
-	l := slog.Default()
+2. Register jobs with schedules and names.
+```go
+gocron.Must(cron.Add("*/1 * * * * *", func(ctx context.Context) error {
+	log.Println("tick")
+	return nil
+})).WithName("1s ok")
+```
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+3. Start the scheduler and shut it down using the same context.
+```go
+cron.Start()
 
-	notifyCtx, cancelNotifyCtx := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer cancelNotifyCtx()
-
-	c := gocron.NewCron(notifyCtx,
-		gocron.WithTimeout(15*time.Second),
-		gocron.WithDefaultHandler(gocron.SlogHandler(l, slog.LevelError)),
-	)
-
-	gocron.Must(c.Add("*/1 * * * * *", func(ctx context.Context) error {
-		log.Println("@every 1s run")
-		return nil
-	})).WithName("1s ok")
-
-	c.MustAdd("@every 1s", func(ctx context.Context) error {
-		return errors.New("no data")
-	}).WithName("1s err")
-
-	c.MustAdd("@every 1m", func(ctx context.Context) error {
-		time.Sleep(16 * time.Second)
-		return ctx.Err()
-	}).WithName("1s timeout")
-
-	c.Start()
-
-	<-notifyCtx.Done()
-
-	if err := c.Shutdown(ctx); err != nil {
-		l.Error("can't shutdown cron", slog.Any("error", err))
-		return
-	}
+if err := cron.Shutdown(ctx); err != nil {
+	slog.Default().Error("shutdown cron", slog.Any("error", err))
 }
 ```
+
+For a full, signal-aware example, see `internal/example` and `internal/example/main.go`.
 
 ## Testing
 See `ai-rules/test/SKILL.md` for unit test guidelines.

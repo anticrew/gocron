@@ -94,10 +94,8 @@ func (j *job) acquireLock(ctx context.Context) bool {
 		return true
 	}
 
-	if err := j.lock.Lock(ctx); err != nil {
-		j.handle(StageStart, err)
-		return false
-	}
+	err := j.lock.Lock(ctx)
+	j.handle(StageStart, err)
 
 	return true
 }
@@ -107,9 +105,8 @@ func (j *job) releaseLock(ctx context.Context) {
 		return
 	}
 
-	if err := j.lock.Unlock(ctx); err != nil {
-		j.handle(StageFinish, err)
-	}
+	err := j.lock.Unlock(ctx)
+	j.handle(StageFinish, err)
 }
 
 func (j *job) handle(stage Stage, err error) {
@@ -117,5 +114,5 @@ func (j *job) handle(stage Stage, err error) {
 		return
 	}
 
-	j.handler(j.spec, j.name, stage, err)
+	j.handler.Handle(j.spec, j.name, stage, err)
 }

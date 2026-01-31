@@ -11,6 +11,7 @@ import (
 	"time"
 
 	gocron "github.com/anticrew/gocron"
+	"github.com/anticrew/gocron/internal"
 )
 
 func main() {
@@ -24,10 +25,10 @@ func main() {
 
 	c := gocron.NewCron(notifyCtx,
 		gocron.WithTimeout(15*time.Second),
-		gocron.WithDefaultHandler(gocron.SlogHandler(l, slog.LevelError)),
+		gocron.WithDefaultHandler(gocron.NewSlogHandler(l).WithError(slog.LevelError)),
 	)
 
-	gocron.Must(c.Add("*/1 * * * * *", func(ctx context.Context) error {
+	internal.Must(c.Add("*/1 * * * * *", func(ctx context.Context) error {
 		log.Println("@every 1s run")
 		return nil
 	})).WithName("1s ok")

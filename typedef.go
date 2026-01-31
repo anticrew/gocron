@@ -60,4 +60,14 @@ const (
 )
 
 // Handler receives job errors with stage context
-type Handler func(spec, name string, state Stage, err error)
+type Handler interface {
+	Handle(spec, name string, stage Stage, err error)
+}
+
+// HandlerFunc adapts a function to a Handler.
+type HandlerFunc func(spec, name string, stage Stage, err error)
+
+// Handle calls the wrapped function.
+func (f HandlerFunc) Handle(spec, name string, stage Stage, err error) {
+	f(spec, name, stage, err)
+}

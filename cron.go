@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/anticrew/gocron/internal"
 	c "github.com/robfig/cron"
 )
 
@@ -72,8 +73,10 @@ func (c *cron) Add(spec string, cmd Cmd) (Job, error) {
 	return j, nil
 }
 
+// MustAdd registers a job with the given cron spec like Add, but panics on any error.
+// Look at github.com/robfig/cron documentation for details about spec format
 func (c *cron) MustAdd(spec string, cmd Cmd) Job {
-	return Must(c.Add(spec, cmd))
+	return internal.Must(c.Add(spec, cmd))
 }
 
 // Start begins scheduling jobs.
