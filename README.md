@@ -32,7 +32,7 @@ cron := gocron.NewCron(ctx, gocron.WithTimeout(15*time.Second))
 
 3. Register jobs with schedules and, optionally, names or handlers.
 ```go
-j, err := cron.Add("*/1 * * * * *", func(ctx context.Context) error {
+j, err := cron.Add("* * * * *", func(ctx context.Context) error {
 	log.Println("tick")
 	return nil
 })
@@ -45,7 +45,7 @@ j.WithName("#1")
 ```go
 h := gocron.NewSlogHandler(slog.Default()).
     WithError(slog.LevelError).
-    WithTrace(slog.LevelDebug)
+    WithEvent(slog.LevelDebug)
 
 cron.MustAdd("@every 1s", func(ctx context.Context) error {
 	log.Println("tick")

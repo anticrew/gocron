@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/anticrew/gocron/internal"
-	c "github.com/robfig/cron"
+	c "github.com/robfig/cron/v3"
 )
 
 type defaults struct {
@@ -26,34 +26,53 @@ type cron struct {
 	wg       *sync.WaitGroup
 }
 
-type Option func(*cron)
+type optionsHolder struct {
+	defaults    defaults
+	cronOptions []c.Option
+}
+
+type Option func(o *optionsHolder)
 
 // WithDefaultHandler sets the default handler used by all jobs.
 // This handler can be overwritten by Job.WithHandler
 func WithDefaultHandler(h Handler) Option {
-	return func(c *cron) {
-		c.defaults.handler = h
+	return func(o *optionsHolder) {
+		o.defaults.handler = h
 	}
 }
 
 // WithTimeout sets the default timeout used by all jobs.
 // This timeout can be overwritten by Job.WithTimeout
 func WithTimeout(t time.Duration) Option {
-	return func(c *cron) {
-		c.defaults.timeout = t
+	return func(o *optionsHolder) {
+		o.defaults.timeout = t
+	}
+}
+
+func WithSeconds() Option {
+	return func(o *optionsHolder) {
+		o.cronOptions = append(o.cronOptions, c.WithSeconds())
+	}
+}
+
+func WithOptions(opts ...c.Option) Option {
+	return func(o *optionsHolder) {
+		o.cronOptions = append(o.cronOptions, opts...)
 	}
 }
 
 // NewCron creates a cron with the provided context and options
 func NewCron(ctx context.Context, options ...Option) Cron {
-	cr := &cron{
-		baseCtx: internal.WithDefault(ctx, context.Background),
-		cron:    c.New(),
-		wg:      &sync.WaitGroup{},
+	var opt optionsHolder
+	for _, option := range options {
+		option(&opt)
 	}
 
-	for _, option := range options {
-		option(cr)
+	cr := &cron{
+		baseCtx:  internal.WithDefault(ctx, context.Background),
+		cron:     c.New(opt.cronOptions...),
+		defaults: opt.defaults,
+		wg:       &sync.WaitGroup{},
 	}
 
 	return cr
@@ -71,7 +90,7 @@ func (c *cron) Add(spec string, cmd Cmd) (Job, error) {
 	j.WithTimeout(c.defaults.timeout)
 	j.withWaitGroup(c.wg)
 
-	if err := c.cron.AddJob(spec, j); err != nil {
+	if _, err := c.cron.AddJob(spec, j); err != nil {
 		return nil, fmt.Errorf("cron.AddJob: %w", err)
 	}
 

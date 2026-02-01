@@ -24,6 +24,7 @@ func main() {
 	defer cancelNotifyCtx()
 
 	c := gocron.NewCron(notifyCtx,
+		gocron.WithSeconds(),
 		gocron.WithTimeout(15*time.Second),
 		gocron.WithDefaultHandler(gocron.NewSlogHandler(l).WithError(slog.LevelError)),
 	)

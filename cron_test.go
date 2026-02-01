@@ -22,7 +22,7 @@ func TestCron_Add(t *testing.T) {
 	}{
 		{
 			name:        "nil command returns ErrCommandIsNil",
-			spec:        "* * * * * *",
+			spec:        "* * * * *",
 			cmd:         nil,
 			expectedErr: ErrCommandIsNil,
 		},
@@ -42,7 +42,7 @@ func TestCron_Add(t *testing.T) {
 
 			switch {
 			case tc.expectedErr != nil:
-				assert.ErrorIs(t, err, tc.expectedErr)
+				require.ErrorIs(t, err, tc.expectedErr)
 
 			case len(tc.expectedContains) > 0:
 				assert.ErrorContains(t, err, tc.expectedContains)
@@ -56,9 +56,9 @@ func TestCron_DefaultHandler(t *testing.T) {
 
 	ctx := t.Context()
 
-	var called bool
+	var called atomic.Bool
 	c := NewCron(ctx, WithDefaultHandler(HandlerFunc(func(event JobEvent) {
-		called = true
+		called.Store(true)
 	})))
 
 	c.MustAdd("@every 1s", func(context.Context) error { return nil })
@@ -69,7 +69,7 @@ func TestCron_DefaultHandler(t *testing.T) {
 
 	require.NoError(t, c.Shutdown(ctx))
 
-	assert.True(t, called)
+	assert.True(t, called.Load())
 }
 
 func TestCron_DefaultTimeout(t *testing.T) {
@@ -80,7 +80,7 @@ func TestCron_DefaultTimeout(t *testing.T) {
 		spec     string
 		timeout  time.Duration
 		job      time.Duration
-		wait     time.Duration
+		limit    time.Duration
 		expected error
 	}{
 		{
@@ -88,7 +88,7 @@ func TestCron_DefaultTimeout(t *testing.T) {
 			spec:     "@every 1s",
 			timeout:  10 * time.Millisecond,
 			job:      100 * time.Millisecond,
-			wait:     time.Second,
+			limit:    time.Second,
 			expected: context.DeadlineExceeded,
 		},
 		{
@@ -96,7 +96,7 @@ func TestCron_DefaultTimeout(t *testing.T) {
 			spec:    "@every 1s",
 			timeout: 0,
 			job:     100 * time.Millisecond,
-			wait:    time.Second,
+			limit:   time.Second,
 		},
 	}
 
@@ -104,24 +104,37 @@ func TestCron_DefaultTimeout(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx := t.Context()
+			ctx, cancel := context.WithTimeout(t.Context(), tc.limit)
+			t.Cleanup(cancel)
 
 			c := NewCron(ctx, WithTimeout(tc.timeout))
 
-			var err error
-			c.MustAdd("* * * * * *", func(ctx context.Context) error {
+			errCh := make(chan error, 1)
+			c.MustAdd(tc.spec, func(ctx context.Context) error {
 				time.Sleep(tc.job)
-				err = ctx.Err()
+
+				select {
+				case errCh <- ctx.Err():
+				default:
+				}
+
 				return nil
 			})
 
 			c.Start()
 
-			time.Sleep(tc.wait)
+			t.Cleanup(func() {
+				_ = c.Shutdown(ctx)
+			})
 
-			require.NoError(t, c.Shutdown(ctx))
+			var got error
+			select {
+			case got = <-errCh:
+			case <-ctx.Done():
+				t.Fatalf("job did not run in time: %v", ctx.Err())
+			}
 
-			assert.ErrorIs(t, err, tc.expected)
+			assert.ErrorIs(t, got, tc.expected)
 		})
 	}
 }
@@ -133,9 +146,9 @@ func TestCron_Start(t *testing.T) {
 
 	c := NewCron(ctx)
 
-	var called int
+	var called atomic.Int32
 	c.MustAdd("@every 1s", func(context.Context) error {
-		called++
+		called.Add(1)
 		return nil
 	})
 
@@ -147,7 +160,7 @@ func TestCron_Start(t *testing.T) {
 	time.Sleep(time.Second)
 	require.NoError(t, c.Shutdown(ctx))
 
-	assert.Equal(t, 1, called)
+	assert.EqualValues(t, 1, called.Load())
 }
 
 func TestCron_Shutdown(t *testing.T) {
@@ -158,7 +171,7 @@ func TestCron_Shutdown(t *testing.T) {
 
 		ctx := t.Context()
 		c := NewCron(ctx)
-		assert.ErrorIs(t, c.Shutdown(ctx), ErrCronNotRunning)
+		require.ErrorIs(t, c.Shutdown(ctx), ErrCronNotRunning)
 	})
 
 	t.Run("several calls", func(t *testing.T) {
@@ -168,7 +181,7 @@ func TestCron_Shutdown(t *testing.T) {
 		c := NewCron(ctx)
 		c.Start()
 		require.NoError(t, c.Shutdown(ctx))
-		require.Error(t, c.Shutdown(ctx), ErrCronNotRunning)
+		require.ErrorIs(t, c.Shutdown(ctx), ErrCronNotRunning)
 	})
 }
 
