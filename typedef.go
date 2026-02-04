@@ -27,7 +27,9 @@ type Cron interface {
 	Shutdown(ctx context.Context) error
 }
 
-// Job configures a scheduled job
+// Job configures a scheduled job.
+// Lock acquisition uses the parent context without timeout; callers should implement
+// lock timeouts in the Lock itself if needed.
 type Job interface {
 	// WithName sets the human-readable name used in handlers
 	WithName(name string) Job

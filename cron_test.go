@@ -65,6 +65,7 @@ func TestCron_DefaultHandler(t *testing.T) {
 
 	c.Start()
 
+	// TODO: заменить sleep на синхронизацию через канал, тест флейковый под нагрузкой.
 	time.Sleep(time.Second)
 
 	require.NoError(t, c.Shutdown(ctx))
@@ -157,6 +158,7 @@ func TestCron_Start(t *testing.T) {
 		c.Start()
 	}
 
+	// TODO: заменить sleep на синхронизацию через канал, тест флейковый под нагрузкой.
 	time.Sleep(time.Second)
 	require.NoError(t, c.Shutdown(ctx))
 
@@ -240,6 +242,7 @@ func TestCron_GracefulShutdown(t *testing.T) {
 
 			c.Start()
 
+			// TODO: заменить sleep на синхронизацию через канал, тест флейковый под нагрузкой.
 			time.Sleep(tc.wait)
 
 			shutdownCtx, cancel := context.WithTimeout(ctx, tc.timeout)

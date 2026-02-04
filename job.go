@@ -69,7 +69,8 @@ func (j *job) WithTimeout(t time.Duration) Job {
 	return j
 }
 
-// WithLock sets the lock used to guard concurrent runs
+// WithLock sets the lock used to guard concurrent runs.
+// Lock acquisition uses the parent context without timeout; implement lock timeouts in the Lock itself.
 func (j *job) WithLock(lock Lock) Job {
 	j.lock = lock
 	return j

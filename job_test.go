@@ -239,5 +239,5 @@ func TestJob_WaitGroup(t *testing.T) {
 
 	wg.Wait()
 
-	assert.GreaterOrEqual(t, sleep-spread, time.Since(start))
+	assert.GreaterOrEqual(t, time.Since(start), sleep-spread)
 }
