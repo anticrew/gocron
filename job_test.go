@@ -227,7 +227,7 @@ func TestJob_WaitGroup(t *testing.T) {
 	)
 
 	j := newJob(t.Context(), "spec", func(context.Context) error {
-		time.Sleep(sleep)
+		time.Sleep(sleep * 2)
 		return nil
 	})
 
@@ -237,6 +237,7 @@ func TestJob_WaitGroup(t *testing.T) {
 	start := time.Now()
 	go j.Run()
 
+	time.Sleep(spread)
 	wg.Wait()
 
 	assert.GreaterOrEqual(t, time.Since(start), sleep-spread)
