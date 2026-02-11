@@ -15,7 +15,7 @@ func RandName(size int) string {
 	}
 
 	b := make([]byte, size)
-	// Не проверяем ошибку: в Go 1.25 rand.Read паникует при любой ошибке.
+	// Не проверяем ошибку: в Go 1.25.0 rand.Read паникует при любой ошибке.
 	_, _ = rand.Read(b)
 
 	return base64.RawURLEncoding.EncodeToString(b)[:size]
