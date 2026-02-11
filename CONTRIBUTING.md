@@ -16,7 +16,7 @@ Thanks for your interest in contributing to gocron. Please follow these guidelin
 - Prefer explicit error handling; avoid hidden side effects.
 
 ## Testing and linting
-- Unit testing guidance: see `ai-rules/test/TESTS.md`.
+- Unit testing guidance: see `ai-rules/test/SKILL.md`.
 - After code changes, run:
   - `goimports -w -l ./...`
   - `golangci-lint run`

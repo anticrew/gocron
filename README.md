@@ -63,7 +63,7 @@ if err := cron.Shutdown(ctx); err != nil {
 }
 ```
 We recommend using a context with a timeout or deadline for `Shutdown` and ensuring it isn't already canceled.  
-For a full example, e.g. signal-aware context, see `internal/example` and `internal/example/main.go`.
+For a full example, e.g. signal-aware context, see `example` directory and `example/main.go`.
 
 ## Testing
 See `ai-rules/test/SKILL.md` for unit test guidelines.
