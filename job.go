@@ -1,0 +1,128 @@
+package gocron
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/anticrew/gocron/internal"
+)
+
+type job struct {
+	spec, name string
+
+	baseCtx    context.Context
+	newContext internal.ContextFactory
+
+	wg   *sync.WaitGroup
+	lock Lock
+
+	cmd     Cmd
+	handler Handler
+}
+
+func newJob(baseCtx context.Context, spec string, cmd Cmd) *job {
+	return &job{
+		spec:       spec,
+		name:       internal.RandName(8),
+		baseCtx:    baseCtx,
+		newContext: internal.CancelContextFactory(),
+		cmd:        cmd,
+	}
+}
+
+// Run executes the job command with lock and handler hooks.
+// Exported for compliance with github.com/robfig/cron's Job interface and shouldn't be called manually
+func (j *job) Run() {
+	if j.wg != nil {
+		j.wg.Add(1)
+		defer j.wg.Done()
+	}
+
+	ctx, cancel := context.WithCancel(j.baseCtx)
+	defer cancel()
+
+	if !j.acquireLock(ctx) {
+		return
+	}
+
+	defer j.releaseLock(ctx)
+
+	cmdCtx, cancelCmdCtx := j.newContext(ctx)
+	defer cancelCmdCtx()
+
+	err := j.cmd(cmdCtx)
+	j.handle(StageExec, err)
+}
+
+// WithTimeout sets the job timeout; non-positive value disables timeout
+func (j *job) WithTimeout(t time.Duration) Job {
+	var f internal.ContextFactory
+
+	if t > 0 {
+		f = internal.TimeoutContextFactory(t)
+	} else {
+		f = internal.CancelContextFactory()
+	}
+
+	j.newContext = f
+	return j
+}
+
+// WithLock sets the lock used to guard concurrent runs.
+// Lock acquisition uses the parent context without timeout; implement lock timeouts in the Lock itself.
+func (j *job) WithLock(lock Lock) Job {
+	j.lock = lock
+	return j
+}
+
+// WithHandler sets the error handler used by this job; nil disabled error handling
+func (j *job) WithHandler(h Handler) Job {
+	j.handler = h
+	return j
+}
+
+// WithName sets the human-readable name used in handlers
+func (j *job) WithName(name string) Job {
+	j.name = name
+	return j
+}
+
+func (j *job) withWaitGroup(wg *sync.WaitGroup) {
+	j.wg = wg
+}
+
+func (j *job) acquireLock(ctx context.Context) bool {
+	var err error
+
+	if j.lock != nil {
+		err = j.lock.Lock(ctx)
+	}
+
+	j.handle(StageStart, err)
+
+	return err == nil
+}
+
+func (j *job) releaseLock(ctx context.Context) {
+	var err error
+
+	if j.lock != nil {
+		err = j.lock.Unlock(ctx)
+	}
+
+	j.handle(StageFinish, err)
+}
+
+func (j *job) handle(stage Stage, err error) {
+	if j.handler == nil {
+		return
+	}
+
+	j.handler.Handle(JobEvent{
+		JobSpec: j.spec,
+		JobName: j.name,
+		Stage:   stage,
+		Error:   err,
+	})
+}

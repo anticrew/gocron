@@ -1,0 +1,17 @@
+version: '3'
+tasks:
+  lint:
+    cmds:
+      - goimports -w -l .
+      - golangci-lint run
+
+  test:
+    cmds:
+      - go test ./...
+
+  coverage:
+    cmds:
+      - go test -count=1 -coverpkg=./... -covermode=atomic -coverprofile coverage.out  ./...
+      - grep -v -E -f .covignore coverage.out > coverage.filtered.out
+      - mv coverage.filtered.out coverage.out
+      - go tool cover -func coverage.out
